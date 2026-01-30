@@ -31,6 +31,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add *.xlsx
+          git add utinformacio.xlsx
           git commit -m "Automatikus frissítés: $(date)" || echo "Nincs változás"
           git push
