@@ -52,11 +52,14 @@ def scrape_datex():
                     "Google Maps": f"https://www.google.com/maps?q={lat.text},{lon.text}"
                 })
 
+        # HA NINCS ADAT, akkor is létrehozunk egy üres DataFrame-et fejlécekkel
         if not data_list:
+            print("Jelenleg nincs aktív esemény az XML-ben, üres táblázat készül.")
             df = pd.DataFrame(columns=["Adatfrissítés", "Esemény típusa", "Út száma", "Szélesség (Lat)", "Hosszúság (Lon)", "Google Maps"])
         else:
             df = pd.DataFrame(data_list)
 
+        # Excel frissítése vagy létrehozása
         if os.path.exists(FILE_NAME):
             old_df = pd.read_excel(FILE_NAME)
             final_df = pd.concat([old_df, df]).drop_duplicates(
@@ -67,10 +70,13 @@ def scrape_datex():
             final_df = df
 
         final_df.to_excel(FILE_NAME, index=False)
-        print(f"Sikeres mentés: {FILE_NAME}")
+        print(f"Sikeres mentés: {FILE_NAME} ({len(final_df)} sor)")
 
     except Exception as e:
         print(f"Hiba történt: {e}")
+        # Hiba esetén is létrehozunk egy alap fájlt, hogy a GitHub Action ne dőljön össze
+        if not os.path.exists(FILE_NAME):
+            pd.DataFrame(columns=["Hiba"]).to_excel(FILE_NAME, index=False)
 
 if __name__ == "__main__":
     scrape_datex()
