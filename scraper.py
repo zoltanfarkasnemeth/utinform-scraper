@@ -4,8 +4,8 @@ import pandas as pd
 import os
 from datetime import datetime
 
-# Beállítások - Figyelj a pontos fájlnévre!
-URL = "https://www.utinform.hu/api/datex2/situation" 
+# Beállítások
+URL = "https://www.utinform.hu/api/datex2/situation"
 FILE_NAME = "utinformacio.xlsx"
 
 def scrape_datex():
@@ -17,7 +17,6 @@ def scrape_datex():
         response.raise_for_status()
         root = ET.fromstring(response.content)
         
-        # Datex2 névterek definíciója
         ns = {
             'ns19': 'http://datex2.eu/schema/3/situation',
             'ns11': 'http://datex2.eu/schema/3/locationReferencing',
@@ -25,10 +24,7 @@ def scrape_datex():
         }
 
         data_list = []
-
-        # Rekordok feldolgozása
         for record in root.findall('.//ns19:situationRecord', ns):
-            # Típus (Baleset vagy Útlezárás)
             acc_type = record.find('.//ns19:accidentType', ns)
             mgmt_type = record.find('.//ns19:roadOrCarriagewayOrLaneManagementType', ns)
             comp_option = record.find('.//ns19:complianceOption', ns)
@@ -42,7 +38,6 @@ def scrape_datex():
             if comp_option is not None:
                 esemeny = f"{esemeny} ({comp_option.text})"
 
-            # Adatok kinyerése
             road_num = record.find('.//ns11:roadNumber', ns)
             lat = record.find('.//ns11:latitude', ns)
             lon = record.find('.//ns11:longitude', ns)
@@ -57,14 +52,11 @@ def scrape_datex():
                     "Google Maps": f"https://www.google.com/maps?q={lat.text},{lon.text}"
                 })
 
-        # DataFrame létrehozása
         if not data_list:
             df = pd.DataFrame(columns=["Adatfrissítés", "Esemény típusa", "Út száma", "Szélesség (Lat)", "Hosszúság (Lon)", "Google Maps"])
-            print("Jelenleg nincs aktív esemény.")
         else:
             df = pd.DataFrame(data_list)
 
-        # Excel frissítése vagy létrehozása
         if os.path.exists(FILE_NAME):
             old_df = pd.read_excel(FILE_NAME)
             final_df = pd.concat([old_df, df]).drop_duplicates(
