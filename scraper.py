@@ -4,19 +4,20 @@ import pandas as pd
 import os
 from datetime import datetime
 
-# Az Útinform Datex2 API végpontja
+# Útinform Datex2 API végpont
 URL = "https://www.utinform.hu/api/datex2/situation" 
 FILE_NAME = "utinform_adatok.xlsx"
 
 def scrape_datex():
-    print(f"Lekérdezés indítása: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    most = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    print(f"Lekérdezés indítása: {most}")
+    
     try:
-        # Adatok letöltése
         response = requests.get(URL, timeout=30)
         response.raise_for_status()
         root = ET.fromstring(response.content)
         
-        # Datex2 névterek meghatározása
+        # Datex2 névterek definíciója
         ns = {
             'ns19': 'http://datex2.eu/schema/3/situation',
             'ns11': 'http://datex2.eu/schema/3/locationReferencing',
@@ -25,69 +26,67 @@ def scrape_datex():
 
         data_list = []
 
-        # Végigmegyünk minden eseményrekordon
+        # Minden situationRecord elem végigjárása
         for record in root.findall('.//ns19:situationRecord', ns):
-            # 1. Típus kinyerése (Baleset vagy Útlezárás/Management)
+            # 1. Típus meghatározása (Baleset vagy Útlezárás)
             acc_type = record.find('.//ns19:accidentType', ns)
             mgmt_type = record.find('.//ns19:roadOrCarriagewayOrLaneManagementType', ns)
             comp_option = record.find('.//ns19:complianceOption', ns)
             
-            esemeny_neve = "Ismeretlen"
-            if acc_type is not None: 
-                esemeny_neve = acc_type.text
-            elif mgmt_type is not None: 
-                esemeny_neve = mgmt_type.text
+            esemeny = "Egyéb korlátozás"
+            if acc_type is not None:
+                esemeny = acc_type.text
+            elif mgmt_type is not None:
+                esemeny = mgmt_type.text
             
-            # Kiegészítés (pl. mandatory/optional)
+            # Compliance kiegészítés (pl. mandatory)
             if comp_option is not None:
-                esemeny_neve = f"{esemeny_neve} ({comp_option.text})"
+                esemeny = f"{esemeny} ({comp_option.text})"
 
-            # 2. Útszám kinyerése
+            # 2. Útszám és koordináták kinyerése
             road_num = record.find('.//ns11:roadNumber', ns)
-            
-            # 3. Koordináták kinyerése (Lat/Lon)
             lat = record.find('.//ns11:latitude', ns)
             lon = record.find('.//ns11:longitude', ns)
             
-            # Adatok hozzáadása a listához
+            # Adatsor összeállítása
             data_list.append({
-                "Frissítve": datetime.now().strftime("%H:%M:%S"),
-                "Esemény típusa": esemeny_neve,
+                "Adatfrissítés": most,
+                "Esemény típusa": esemeny,
                 "Út száma": road_num.text if road_num is not None else "N/A",
                 "Szélesség (Lat)": lat.text if lat is not None else "N/A",
-                "Hosszúság (Lon)": lon.text if lon is not None else "N/A"
+                "Hosszúság (Lon)": lon.text if lon is not None else "N/A",
+                "Google Maps": f"https://www.google.com/maps?q={lat.text},{lon.text}" if lat is not None else "N/A"
             })
 
-        # Ha épp nincs esemény, jelezzük a táblázatban, hogy lefutott a kód
+        # Ha nincs adat, ne álljon le, hogy a GitHub Action ne jelezzen hibát
         if not data_list:
+            print("Jelenleg nincs aktív esemény az XML-ben.")
+            # Hozzáadunk egy sort, hogy lássuk: a script lefutott
             data_list.append({
-                "Frissítve": datetime.now().strftime("%H:%M:%S"),
-                "Esemény típusa": "Nincs aktív korlátozás",
-                "Út száma": "-", 
-                "Szélesség (Lat)": "-", 
-                "Hosszúság (Lon)": "-"
+                "Adatfrissítés": most,
+                "Esemény típusa": "Nincs esemény",
+                "Út száma": "-", "Szélesség (Lat)": "-", "Hosszúság (Lon)": "-", "Google Maps": "-"
             })
 
         new_df = pd.DataFrame(data_list)
 
-        # Excel mentése/frissítése
+        # Excel fájl kezelése (hozzáfűzés duplikáció szűréssel)
         if os.path.exists(FILE_NAME):
             old_df = pd.read_excel(FILE_NAME)
-            # Összefűzzük, de csak azokat tartjuk meg, amiknél az Út, Típus vagy Koordináta eltér
-            # A 'keep=last' biztosítja, hogy a legfrissebb időpont maradjon meg
+            # Ha a típus, útszám és koordináta egyezik, nem vesszük fel új sorként (csak frissítjük az időt)
             final_df = pd.concat([old_df, new_df]).drop_duplicates(
-                subset=["Esemény típusa", "Út száma", "Szélesség (Lat)", "Hosszúság (Lon)"], 
+                subset=["Esemény típusa", "Út száma", "Szélesség (Lat)"], 
                 keep='last'
             ).reset_index(drop=True)
         else:
             final_df = new_df
 
-        # Mentés Excel fájlba
+        # Mentés
         final_df.to_excel(FILE_NAME, index=False)
-        print(f"Sikeres mentés. Aktuális rekordszám: {len(final_df)}")
+        print(f"Sikeres mentés az Excelbe. Sorok száma: {len(final_df)}")
 
     except Exception as e:
-        print(f"Hiba történt a futás során: {e}")
+        print(f"Hiba történt: {e}")
 
 if __name__ == "__main__":
     scrape_datex()
