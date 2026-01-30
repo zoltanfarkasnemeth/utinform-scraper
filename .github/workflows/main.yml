@@ -2,7 +2,7 @@ name: Datex Scraper
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # Futás 5 percenként
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
