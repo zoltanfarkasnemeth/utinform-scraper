@@ -2,7 +2,7 @@ name: Datex Scraper
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/5 * * * *' # Futás 5 percenként
   workflow_dispatch:
 
 permissions:
@@ -15,22 +15,22 @@ jobs:
       - name: Checkout kód
         uses: actions/checkout@v4
 
-      - name: Python környezet beállítása
+      - name: Python beállítása
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
-      - name: Szükséges csomagok telepítése
+      - name: Csomagok telepítése
         run: |
           pip install requests pandas openpyxl
 
       - name: Scraper futtatása
         run: python scraper.py
 
-      - name: Adatok mentése a tárhelybe
+      - name: Mentés a GitHub-ra
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add utinform_adatok.xlsx
-          git commit -m "Automatikus adatfrissítés: $(date)" || echo "Nincs változás"
+          git add utinformacio.xlsx
+          git commit -m "Adatfrissítés: $(date)" || echo "Nincs változás"
           git push
